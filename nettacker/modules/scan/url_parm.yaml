@@ -1,0 +1,47 @@
+info: 
+  name: url_parm_scan
+  author: OWASP Nettacker Team
+  severity: 0
+  description: Find url parameters
+  reference: null
+  profiles:
+    - http
+    - parameter scanning
+
+payloads:
+  - library: http
+    steps:
+      - method: get
+        timeout: 5
+        allow_redirects: false
+        ssl: false
+        url:
+          nettacker_fuzzer:
+            input_format: "{{schema}}://{target}:{{ports}}/{{paths}}"
+            prefix: ""
+            suffix: ""
+            interceptors: null
+            data:
+              schema:
+                - http
+                - https
+              ports:
+                - 80
+                - 443
+              paths: 
+                read_from_file: wordlists/admin_wordlist.txt
+        response:
+          condition_type: and
+          log: "response_dependent['headers']['Location']"
+          conditions:
+            url:
+              regex: .*
+              reverse: false
+            status_code:
+              regex: 400|302
+              reverse: false
+            headers:
+              Location: 
+               regex: .*\?.*=.*
+               reverse: false
+            
