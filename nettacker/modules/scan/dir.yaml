@@ -14,12 +14,9 @@ payloads:
   - library: http
     options: # 2. More efficient O(k * d) where k is the number of successful dir & d would be the number of levels
       recursive: True
-
     steps:
       - method: get
         timeout: 3
-        # options: # 1. Adding recursion options (not a good approach: tied to number of steps -> lead to exponential explosion of steps O(k^d)
-        #   recursive: True
         headers:
           User-Agent: "{user_agent}"
         allow_redirects: false
