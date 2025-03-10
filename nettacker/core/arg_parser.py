@@ -415,7 +415,6 @@ class ArgParser(ArgumentParser):
             dest="read_from_file",
             help=_("user_wordlist"),
         )
-        # 5. Define -re argumnet
         method_options.add_argument(
             "-re",
             "--recursion-depth",
@@ -640,7 +639,6 @@ class ArgParser(ArgumentParser):
         if options.parallel_module_scan < 1:
             options.parallel_module_scan = 1
 
-        # 9. Make sure recursion is not less than 1
         options.recursion_depth = int(options.recursion_depth)
         if options.recursion_depth < 1: 
             options.recursion_depth = 1

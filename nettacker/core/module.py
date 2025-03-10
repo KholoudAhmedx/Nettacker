@@ -131,19 +131,13 @@ class Module:
 
     def start(self):
         active_threads = []
-        # testing purpose -> iterative directory 
-        def iterative_directory_fuzzing(self):
-            return
-        
-        # 3. Read the options value; 
+         
         payload = self.module_content["payloads"][0]
-        # 8. Check if recusion level provided greater than depth
         if "options" in payload and payload["options"]["recursive"]:
             max_depth = str(payload["options"]["max_depth"])
             recursion_depth = payload["options"]["depth"]
             if recursion_depth > max_depth:
                 payload["options"]["depth"] = str(max_depth)
-            #print("Adjust recursion depth is : ", payload["options"]["depth"])
 
         # counting total number of requests
         total_number_of_requests = 0
