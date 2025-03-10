@@ -14,6 +14,8 @@ payloads:
   - library: http
     options: # 2. More efficient O(k * d) where k is the number of successful dir & d would be the number of levels
       recursive: True
+      max_depth: 3
+      depth: "{recursion_depth}" # 4. takes recursion level from user
     steps:
       - method: get
         timeout: 3
