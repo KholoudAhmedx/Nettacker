@@ -31,11 +31,11 @@ class Module:
         self.module_thread_number = thread_number
         self.total_module_thread_number = total_number_threads
 
-        self.module_inputs = options.__dict__
+        self.module_inputs = options.__dict__ # dir_scan updates (take input value : level of recursion)
         self.module_inputs["target"] = target
 
-        if options.modules_extra_args:
-            for module_extra_args in self.module_inputs["modules_extra_args"]:
+        if options.modules_extra_args: # dir_scan updates : add -r (recurive) arg
+            for module_extra_args in self.module_inputs["modules_extra_args"]: 
                 self.module_inputs[module_extra_args] = self.module_inputs["modules_extra_args"][
                     module_extra_args
                 ]
@@ -131,6 +131,19 @@ class Module:
 
     def start(self):
         active_threads = []
+        # testing purpose -> iterative directory 
+        def iterative_directory_fuzzing(self):
+            return
+        
+        # 3. Read the options value; 
+        payload = self.module_content["payloads"][0]
+        # 8. Check if recusion level provided greater than depth
+        if "options" in payload and payload["options"]["recursive"]:
+            max_depth = str(payload["options"]["max_depth"])
+            recursion_depth = payload["options"]["depth"]
+            if recursion_depth > max_depth:
+                payload["options"]["depth"] = str(max_depth)
+            #print("Adjust recursion depth is : ", payload["options"]["depth"])
 
         # counting total number of requests
         total_number_of_requests = 0
