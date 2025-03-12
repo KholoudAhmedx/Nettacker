@@ -131,14 +131,6 @@ class Module:
 
     def start(self):
         active_threads = []
-         
-        payload = self.module_content["payloads"][0]
-        if "options" in payload and payload["options"]["recursive"]:
-            max_depth = str(payload["options"]["max_depth"])
-            recursion_depth = payload["options"]["depth"]
-            if recursion_depth > max_depth:
-                payload["options"]["depth"] = str(max_depth)
-
         # counting total number of requests
         total_number_of_requests = 0
         for payload in self.module_content["payloads"]:
@@ -148,51 +140,132 @@ class Module:
             for step in payload["steps"]:
                 total_number_of_requests += len(step)
 
-        request_number_counter = 0
-        for payload in self.module_content["payloads"]:
-            library = payload["library"]
-            engine = getattr(
-                importlib.import_module(f"nettacker.core.lib.{library.lower()}"),
-                f"{library.capitalize()}Engine",
-            )()
+        if "options" in payload and payload["options"]["recursive"]:
+            max_depth = payload["options"]["max_depth"]
+            depth = int(payload["options"]["depth"])
+            if depth > max_depth:
+                depth = max_depth
+            base_step = copy.deepcopy(payload["steps"][0][0])  # Template for new sub_steps
+            for d in range(depth):
+                print("Iteration", d)
+                request_number_counter = 0
+                active_threads = []
 
-            for step in payload["steps"]:
-                for sub_step in step:
-                    thread = Thread(
-                        target=engine.run,
-                        args=(
-                            sub_step,
-                            self.module_name,
-                            self.target,
-                            self.scan_id,
-                            self.module_inputs,
-                            self.process_number,
-                            self.module_thread_number,
-                            self.total_module_thread_number,
-                            request_number_counter,
-                            total_number_of_requests,
-                        ),
-                    )
-                    thread.name = f"{self.target} -> {self.module_name} -> {sub_step}"
-                    request_number_counter += 1
-                    log.verbose_event_info(
-                        _("sending_module_request").format(
-                            self.process_number,
-                            self.module_name,
-                            self.target,
-                            self.module_thread_number,
-                            self.total_module_thread_number,
-                            request_number_counter,
-                            total_number_of_requests,
+                 # Thread creation for current payloads
+                for payload in self.module_content["payloads"]:
+                    library = payload["library"]
+                    engine = getattr(
+                        importlib.import_module(f"nettacker.core.lib.{library.lower()}"),
+                        f"{library.capitalize()}Engine",
+                    )()
+
+                    for step in payload["steps"]:
+                        print("Step is:", step)
+                        for sub_step in step:
+                            print(f"Substep in recursion is: {sub_step}")
+                            thread = Thread(
+                                target=engine.run,
+                                args=(
+                                    sub_step,
+                                    self.module_name,
+                                    self.target,
+                                    self.scan_id,
+                                    self.module_inputs,
+                                    self.process_number,
+                                    self.module_thread_number,
+                                    self.total_module_thread_number,
+                                    request_number_counter,
+                                    total_number_of_requests,
+                                ),
+                            )
+                            thread.name = f"{self.target} -> {self.module_name} -> {sub_step}"
+                            request_number_counter += 1
+                            log.verbose_event_info(
+                                _("sending_module_request").format(
+                                    self.process_number,
+                                    self.module_name,
+                                    self.target,
+                                    self.module_thread_number,
+                                    self.total_module_thread_number,
+                                    request_number_counter,
+                                    total_number_of_requests,
+                                )
+                            )
+                            thread.start()
+                            active_threads.append(thread)
+                            time.sleep(self.module_inputs["time_sleep_between_requests"])
+                            wait_for_threads_to_finish(
+                                active_threads,
+                                maximum=self.module_inputs["thread_per_host"],
+                                terminable=True,
+                            )
+
+                # Collect successful URLs after threads finish
+                wait_for_threads_to_finish(active_threads, maximum=None, terminable=True)
+                successful_urls = []
+                for event in find_events(self.target, self.module_name, self.scan_id):
+                    event_data = json.loads(event.json_event)
+                    
+                    successful_urls.append(event_data["url"])
+                print(f"Depth {d} successful directories: {successful_urls}")
+
+                # Update steps for next iteration
+                if successful_urls and d < depth - 1:
+                    new_steps = []
+                    for url in successful_urls:
+                        new_sub_step = copy.deepcopy(base_step)
+                        new_sub_step["url"] = f"{url.rstrip('/')}/{base_step['url'].lstrip('/')}"
+                        new_steps.append([new_sub_step])
+                    payload["steps"] = new_steps 
+                else:
+                    break
+        else:
+
+            request_number_counter = 0
+            for payload in self.module_content["payloads"]:
+                library = payload["library"]
+                engine = getattr(
+                    importlib.import_module(f"nettacker.core.lib.{library.lower()}"),
+                    f"{library.capitalize()}Engine",
+                )()
+
+                for step in payload["steps"]:
+                    for sub_step in step:
+                        thread = Thread(
+                            target=engine.run,
+                            args=(
+                                sub_step,
+                                self.module_name,
+                                self.target,
+                                self.scan_id,
+                                self.module_inputs,
+                                self.process_number,
+                                self.module_thread_number,
+                                self.total_module_thread_number,
+                                request_number_counter,
+                                total_number_of_requests,
+                            ),
                         )
-                    )
-                    thread.start()
-                    time.sleep(self.module_inputs["time_sleep_between_requests"])
-                    active_threads.append(thread)
-                    wait_for_threads_to_finish(
-                        active_threads,
-                        maximum=self.module_inputs["thread_per_host"],
-                        terminable=True,
-                    )
+                        thread.name = f"{self.target} -> {self.module_name} -> {sub_step}"
+                        request_number_counter += 1
+                        log.verbose_event_info(
+                            _("sending_module_request").format(
+                                self.process_number,
+                                self.module_name,
+                                self.target,
+                                self.module_thread_number,
+                                self.total_module_thread_number,
+                                request_number_counter,
+                                total_number_of_requests,
+                            )
+                        )
+                        thread.start()
+                        time.sleep(self.module_inputs["time_sleep_between_requests"])
+                        active_threads.append(thread)
+                        wait_for_threads_to_finish(
+                            active_threads,
+                            maximum=self.module_inputs["thread_per_host"],
+                            terminable=True,
+                        )
 
-        wait_for_threads_to_finish(active_threads, maximum=None, terminable=True)
+            wait_for_threads_to_finish(active_threads, maximum=None, terminable=True)
